@@ -15,6 +15,7 @@ import './lib/entorno.js';
 import { createServer } from 'node:http';
 import { db } from './lib/db.js';
 import { migrar } from './lib/esquema.js';
+import { cargaAjustes } from './lib/integraciones.js';
 import { Rutas, estatico, html, json } from './lib/http.js';
 import { pagina, cabeceraPublica, pie, ico } from './lib/vistas.js';
 import * as sesion from './lib/sesion.js';
@@ -26,6 +27,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
 
 await migrar();
+await cargaAjustes();
 await sesion.limpiaVencidas();
 setInterval(() => sesion.limpiaVencidas().catch(() => {}), 3600_000).unref();
 

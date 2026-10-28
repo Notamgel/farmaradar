@@ -10,94 +10,7 @@ import { permite, token, sha256 } from '../lib/seguridad.js';
 import * as sesion from '../lib/sesion.js';
 import * as busqueda from '../lib/busqueda.js';
 import { urlPublica } from '../lib/entorno.js';
-
-/* ── Landing ────────────────────────────────────────────────────────────── */
-
-function landing() {
-  const paso = (n, icono, titulo, txt, clase = '') => `<li class="paso ${clase}"><span class="paso-ico">${icono}</span><div><span class="paso-n">${n}</span><h3>${titulo}</h3><p>${txt}</p></div></li>`;
-  return pagina({
-    titulo: 'FarmaRadar · Encuentra tu medicina',
-    clase: 'landing',
-    cuerpo: `${cabeceraPublica()}
-<main>
-<section class="hero">
-  <div class="ancho hero-in">
-    <div class="hero-txt">
-      <p class="etiqueta">${ico.radar} Contra el desabasto de medicamentos</p>
-      <h1>La medicina que buscas puede estar en la farmacia de la esquina.</h1>
-      <p class="lead">FarmaRadar busca en tiempo real en las farmacias de cadena y, si están agotadas, pregunta por ti a las farmacias de barrio: por llamada y por WhatsApp.</p>
-      <form class="buscador" action="/buscar" method="get" role="search">
-        <label class="campo-ico">${ico.pildora}<input name="m" placeholder="¿Qué medicina buscas? Ej. Insulina glargina" autocomplete="off" required maxlength="160"></label>
-        <label class="campo-ico">${ico.pin}<input name="z" placeholder="Colonia o código postal" autocomplete="off" maxlength="160"></label>
-        <button class="boton primario grande" type="submit">${ico.buscar} Buscar</button>
-      </form>
-      <p class="hero-nota">Sin registrarte. Gratis.</p>
-    </div>
-    <div class="radar-vis" aria-hidden="true">
-      <div class="radar-anillos"><i></i><i></i><i></i><span class="radar-barrido"></span></div>
-      <span class="punto p1 rojo"></span><span class="punto p2 rojo"></span><span class="punto p3 verde"></span><span class="punto p4 ambar"></span><span class="punto p5 gris"></span>
-      <div class="radar-tarjeta t1"><b>Cadena A</b><span class="sem rojo">Agotado</span></div>
-      <div class="radar-tarjeta t2"><b>Cadena B</b><span class="sem rojo">Agotado</span></div>
-      <div class="radar-tarjeta t3"><b>Farmacia de la esquina</b><span class="sem verde">Sí tiene</span></div>
-    </div>
-  </div>
-</section>
-
-<section class="seccion" id="problema">
-  <div class="ancho">
-    <h2>El problema</h2>
-    <p class="sub">En México y Latinoamérica el desabasto de medicamentos para diabetes, hipertensión, cáncer y salud mental obliga a miles de familias a ir de farmacia en farmacia, o a caer en el mercado negro.</p>
-    <div class="tarjetas tres">
-      <article class="tarjeta"><span class="tarjeta-ico rojo">${ico.cadena}</span><h3>Inventarios en silos</h3><p>Cada gran cadena ve solo lo suyo. Nadie cruza la información.</p></article>
-      <article class="tarjeta"><span class="tarjeta-ico ambar">${ico.tienda}</span><h3>El barrio no aparece</h3><p>Muchas farmacias son independientes: sin página web ni tienda en línea, pero a veces con la medicina que las cadenas ya agotaron.</p></article>
-      <article class="tarjeta"><span class="tarjeta-ico gris">${ico.reloj}</span><h3>Horas perdidas</h3><p>Llamar una por una, recorrer la ciudad bajo el sol… justo cuando el tratamiento no puede esperar.</p></article>
-    </div>
-  </div>
-</section>
-
-<section class="seccion gris" id="como-funciona">
-  <div class="ancho">
-    <h2>Cómo funciona</h2>
-    <p class="sub">Un buscador con respaldo en dos fases.</p>
-    <ol class="pasos">
-      ${paso('Fase 1', ico.cadena, 'Grandes cadenas en segundos', 'Consultamos en vivo las existencias y precios en línea de las cadenas, y te lo mostramos con un semáforo.')}
-      ${paso('Fase 2', ico.telefono, 'Llamamos por ti', 'Si las cadenas están agotadas, un agente de voz llama a la farmacia de barrio más cercana y le pregunta al boticario si la tiene y a qué precio.', 'destacado')}
-      ${paso('Fase 2', ico.whatsapp, 'Red de WhatsApp de la colonia', 'Al mismo tiempo, las farmacias registradas de tu zona reciben una alerta y confirman con un mensaje.')}
-      ${paso('Siempre', ico.pildora, 'Genéricos más baratos', 'Identificamos el principio activo de tu medicina y te sugerimos genéricos bioequivalentes.')}
-    </ol>
-  </div>
-</section>
-
-<section class="seccion" id="farmacias">
-  <div class="ancho dos">
-    <div>
-      <h2>¿Tienes una farmacia de barrio?</h2>
-      <p class="sub">Regístrate en 10 segundos y recibe a los pacientes de tu colonia que buscan lo que tú tienes en el mostrador. Sin página web, sin comisiones.</p>
-      <ul class="lista">
-        <li>${ico.ok} Te avisamos por WhatsApp o por llamada cuando alguien busca una medicina cerca.</li>
-        <li>${ico.ok} Contestas «sí, tengo» con un toque y tu precio.</li>
-        <li>${ico.ok} El paciente llega directo a tu mostrador.</li>
-      </ul>
-      <a class="boton primario grande" href="/farmacias/registro">${ico.tienda} Registrar mi farmacia</a>
-    </div>
-    <div class="telefono-vis" aria-hidden="true">
-      <div class="burbuja entra"><b>FarmaRadar</b>Hola, Farmacia Lupita. Un paciente cerca busca <b>Insulina glargina</b>. ¿La tienes?</div>
-      <div class="burbuja sale">Sí, tengo una caja. $390</div>
-      <div class="burbuja entra">¡Gracias! Le avisamos al paciente.</div>
-    </div>
-  </div>
-</section>
-
-<section class="seccion cierre">
-  <div class="ancho">
-    <h2>Rompemos los silos, digitalizamos al boticario y acercamos la medicina al paciente.</h2>
-    <a class="boton blanco grande" href="/buscar">${ico.buscar} Buscar una medicina</a>
-  </div>
-</section>
-</main>
-${pie}`,
-  });
-}
+import { landing } from './landing.js';
 
 /* ── Buscador y resultado ───────────────────────────────────────────────── */
 
@@ -321,7 +234,7 @@ ${pie}`,
 /* ── Rutas ──────────────────────────────────────────────────────────────── */
 
 export default function publico(r) {
-  r.get('/', (req, res) => html(res, landing()));
+  r.get('/', async (req, res) => html(res, await landing()));
   r.get('/salud', (req, res) => json(res, { ok: true }));
   r.get('/buscar', (req, res, { q }) => html(res, buscar(q)));
   r.get('/b/:id', async (req, res, { params }) => {

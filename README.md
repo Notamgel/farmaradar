@@ -46,6 +46,12 @@ sistema funciona: las farmacias contestan desde su panel o su enlace.
 
 Los dos webhooks exigen la cabecera `X-FarmaRadar-Secreto` = `WEBHOOK_SECRETO`.
 
+**Panel → Integraciones** prueba cada API en vivo (consultas gratuitas) y dice qué falta. Con la clave de ElevenLabs
+(con permiso de «ElevenLabs Agents») el botón «Crear el agente de voz» crea el agente con su guion y la herramienta
+`registrar_respuesta`; su id y el del número se guardan en la tabla `ajustes` (lo del `.env` manda). **Panel → Cadenas**
+muestra la última consulta de cada cadena: si su web bloquea la lectura automática o no muestra los productos, se marca
+como error y el paciente ve «No se pudo consultar» (nunca un «agotado» inventado).
+
 ## Código
 
 - `server.js`: arranque y enrutado. `lib/`: base (`db.js`, `esquema.js`), `busqueda.js` (las dos fases),

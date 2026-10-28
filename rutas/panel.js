@@ -154,8 +154,11 @@ async function farmacias(q, extra = '') {
 }
 
 async function cadenas(ok = '', error = '') {
-  const filas = await db.todos('SELECT * FROM cadenas ORDER BY orden, id');
-  const fila = (c) => `<form method="post" action="/panel/cadenas" class="cadena-fila">
+  const filas = await db.todos(`SELECT c.*, u.estado AS u_estado, u.detalle AS u_detalle, u.actualizado AS u_fecha
+    FROM cadenas c LEFT JOIN resultados_cadena u ON u.id = (SELECT MAX(id) FROM resultados_cadena WHERE cadena_id = c.id AND estado <> 'consultando')
+    ORDER BY c.orden, c.id`);
+  const ultima = (c) => (c.u_estado ? `<p class="cadena-ultima">Última consulta (${esc(fecha(c.u_fecha))}): ${sem(c.u_estado)} ${esc(c.u_detalle ?? '')}</p>` : '');
+  const fila = (c) => `${ultima(c)}<form method="post" action="/panel/cadenas" class="cadena-fila">
     <input type="hidden" name="id" value="${c.id ?? ''}">
     <label class="campo"><span>Nombre</span><input name="nombre" value="${esc(c.nombre ?? '')}" required maxlength="120"></label>
     <label class="campo ancho-2"><span>Página de búsqueda (usa {q} donde va la medicina)</span><input name="url_busqueda" value="${esc(c.url_busqueda ?? '')}" required maxlength="500" placeholder="https://…/buscar?q={q}"></label>
@@ -167,13 +170,30 @@ async function cadenas(ok = '', error = '') {
   <section class="bloque"><h2>Agregar cadena</h2>${fila({})}</section>`;
 }
 
-function integracionesVista() {
+async function integracionesVista({ ok = '', error = '', fresca = false } = {}) {
   const lista = integraciones.estado();
+  const vivo = await integraciones.revisa({ fresca });
   const base = urlPublica();
-  return `<p class="sub">Cada API se pone en el archivo <code>.env</code> del proyecto y se enciende sola al reiniciar el servicio. Sin ellas FarmaRadar funciona igual: las farmacias contestan desde su panel o su enlace.</p>
-  <div class="integraciones">${lista.map((a) => `<article class="integracion ${a.configurada ? 'lista' : ''}">
-    <div class="integracion-cab"><h2>${esc(a.nombre)}</h2>${a.configurada ? '<span class="sem verde">Conectada</span>' : '<span class="sem gris">Pendiente</span>'}</div>
+  const extra = (a) => {
+    const v = vivo[a.id];
+    if (a.id !== 'elevenlabs' || !v) return '';
+    let h = '';
+    if (v.puedeCrearAgente && !/permiso/.test(v.texto) && /Falta/.test(v.texto)) {
+      h += `<form method="post" action="/panel/integraciones/agente"><button class="boton primario" type="submit">${ico.telefono} Crear el agente de voz</button></form>`;
+    }
+    if (v.telefonos?.length && !integraciones.configurada('elevenlabs')) {
+      h += `<form method="post" action="/panel/integraciones/telefono" class="fila-form"><label class="campo"><span>Número que llama</span><select name="id">${v.telefonos.map((t) => `<option value="${esc(t.id)}">${esc(t.numero)}${t.etiqueta ? ` · ${esc(t.etiqueta)}` : ''}</option>`).join('')}</select></label><button class="boton" type="submit">Usar este número</button></form>`;
+    }
+    return h;
+  };
+  return `${aviso(ok, 'ok')}${aviso(error, 'error')}
+  <p class="sub">Cada clave va en el archivo <code>.env</code> del proyecto y se enciende al reiniciar el servicio. Esta página prueba cada API en vivo (sin gastar saldo) y dice qué falta. Sin ellas FarmaRadar funciona igual: las farmacias contestan desde su panel o su enlace.</p>
+  <p><a class="boton" href="/panel/integraciones?fresca=1">${ico.actividad} Volver a comprobar</a></p>
+  <div class="integraciones">${lista.map((a) => `<article class="integracion ${vivo[a.id]?.ok ? 'lista' : ''}">
+    <div class="integracion-cab"><h2>${esc(a.nombre)}</h2>${vivo[a.id]?.ok ? '<span class="sem verde">Conectada</span>' : a.configurada ? '<span class="sem ambar">Revisar</span>' : '<span class="sem gris">Pendiente</span>'}</div>
     <p>${esc(a.rol)}</p>
+    ${vivo[a.id] ? `<p class="estado-vivo ${vivo[a.id].ok ? 'ok' : ''}">${vivo[a.id].ok ? ico.ok : ico.reloj} ${esc(vivo[a.id].texto)}</p>` : ''}
+    ${extra(a)}
     <p class="ayuda">Variables: ${a.vars.map((v) => `<code class="${a.faltan.includes(v) ? 'falta' : ''}">${v}</code>`).join(' ')}</p>
     <p class="premio">${ico.rayo} ${esc(a.premio)}</p></article>`).join('')}</div>
   <section class="bloque"><h2>Para conectar n8n y el agente de voz</h2>
@@ -269,7 +289,17 @@ export default function panel(r) {
     redirige(res, '/panel/cadenas?ok=1');
   }));
 
-  r.get('/panel/integraciones', con(async (req, res) => html(res, marco('integraciones', 'Integraciones', integracionesVista()))));
+  r.get('/panel/integraciones', con(async (req, res, { q }) => html(res, marco('integraciones', 'Integraciones', await integracionesVista({ fresca: q.get('fresca') === '1', ok: q.get('ok') ?? '', error: q.get('error') ?? '' })))));
+  r.post('/panel/integraciones/agente', con(async (req, res) => {
+    const r2 = await integraciones.creaAgenteVoz();
+    await db.ejecutar('INSERT INTO actividad (tipo, texto) VALUES (?, ?)', [r2.ok ? 'integracion' : 'error', `ElevenLabs: ${r2.texto}`.slice(0, 500)]);
+    redirige(res, `/panel/integraciones?${r2.ok ? 'ok' : 'error'}=${encodeURIComponent(r2.texto)}`);
+  }));
+  r.post('/panel/integraciones/telefono', con(async (req, res) => {
+    const b = await cuerpo(req);
+    const r2 = await integraciones.eligeTelefono(b.id);
+    redirige(res, `/panel/integraciones?${r2.ok ? 'ok' : 'error'}=${encodeURIComponent(r2.texto)}`);
+  }));
   r.get('/panel/actividad', con(async (req, res) => html(res, marco('actividad', 'Actividad', await actividad()))));
   r.get('/panel/cuenta', con(async (req, res) => html(res, marco('cuenta', 'Mi cuenta', cuenta()))));
   r.post('/panel/cuenta', con(async (req, res, { uid }) => {
