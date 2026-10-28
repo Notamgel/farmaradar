@@ -194,6 +194,7 @@ export async function landing() {
       <h2>Conectado en tiempo real.</h2>
       <p class="sub">Leemos las tiendas en línea de las cadenas al momento y le preguntamos al boticario con voz natural.</p></header>
     <div class="lp-apis">${apis.filter((a) => a.configurada).map((a) => api(a, iconoApi[a.id] ?? ico.rayo)).join('')}</div>
+    <p class="lp-credito revela">Algunos detalles de diseño de la interfaz se prototiparon con <b>Lovable</b>.</p>
   </div>
 </section>
 

@@ -63,6 +63,11 @@ como error y el paciente ve «No se pudo consultar» (nunca un «agotado» inven
   las ciudades principales; si alguien busca donde no hay ninguna en 10 km, se crean 5 alrededor. Contestan solas en la
   fase 2 y no tienen teléfono. Se borran desde Panel → Farmacias.
 
+## Herramientas
+
+Firecrawl (cadenas), ElevenLabs (voz: texto a voz y voz a texto), Google Maps (mapas y ubicación) y MySQL. Algunos
+detalles de diseño de la interfaz se prototiparon con **Lovable**; el resto del sistema está hecho a mano en Node.
+
 ## Código
 
 - `server.js`: arranque y enrutado. `lib/`: base (`db.js`, `esquema.js`), `busqueda.js` (las dos fases),

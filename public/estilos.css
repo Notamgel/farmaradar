@@ -550,3 +550,5 @@ html.asis-abierta { overflow: hidden; }
 .asis-acciones { display: grid; gap: 10px; width: 100%; }
 .asis-acciones .boton { width: 100%; justify-content: center; }
 .asis-ver { background: #fff; color: #0f766e; }
+.asis [hidden] { display: none !important; }
+.lp-credito { margin: 18px 0 0; font-size: .85rem; color: #9cc4bb; } .lp-credito b { color: #e6f2ef; }
