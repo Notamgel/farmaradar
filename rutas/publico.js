@@ -20,11 +20,13 @@ function buscar(q) {
   return pagina({
     titulo: 'Buscar medicina · FarmaRadar',
     clase: 'app',
-    scripts: ['ubicacion.js', 'buscar.js'],
+    scripts: ['ubicacion.js', 'buscar.js', 'asistente.js'],
     cuerpo: `${cabeceraPublica('buscar')}
 <main class="ancho app-main">
   <section class="caja-busqueda">
     <h1>${ico.buscar} ¿Qué medicina necesitas?</h1>
+    ${integraciones.configurada('elevenlabs') ? `<button type="button" class="lp-voz claro" data-asistente>${ico.micro}<span><b>Háblale a FarmaRadar</b><small>Dile qué buscas y dónde; te contesta con voz</small></span></button>
+    <p class="o-escribe">o escríbelo:</p>` : ''}
     <form id="form-buscar" class="form-grid" novalidate>
       <label class="campo ancho-2"><span>Medicina</span>
         <span class="campo-ico">${ico.pildora}<input name="medicamento" value="${esc(m)}" placeholder="Nombre comercial o principio activo" required maxlength="160" autocomplete="off"></span></label>
@@ -50,8 +52,9 @@ function resultado(id) {
     titulo: 'Resultado · FarmaRadar',
     clase: 'app',
     leaflet: true,
-    scripts: ['resultado.js'],
+    scripts: ['resultado.js', 'asistente.js'],
     cuerpo: `${cabeceraPublica('buscar')}
+${integraciones.configurada('elevenlabs') ? `<button type="button" class="voz-flotante" data-asistente data-busqueda="${esc(id)}">${ico.micro}<span>Escuchar y hablar</span></button>` : ''}
 <main class="ancho app-main" id="resultado" data-id="${esc(id)}">
   <div class="cargando">${ico.radar} Buscando…</div>
 </main>

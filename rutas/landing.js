@@ -16,9 +16,9 @@ async function cifras() {
   try {
     const [cad, far, bus, con, pop] = await Promise.all([
       db.todos('SELECT nombre FROM cadenas WHERE activa = 1 ORDER BY orden, id LIMIT 8'),
-      db.uno('SELECT COUNT(*) n FROM farmacias WHERE activa = 1'),
+      db.uno('SELECT COUNT(*) n FROM farmacias WHERE activa = 1 AND demo = 0'),
       db.uno('SELECT COUNT(*) n FROM busquedas'),
-      db.uno("SELECT COUNT(*) n FROM respuestas_locales WHERE estado = 'tiene'"),
+      db.uno("SELECT COUNT(*) n FROM respuestas_locales r JOIN farmacias f ON f.id = r.farmacia_id WHERE r.estado = 'tiene' AND f.demo = 0"),
       db.todos(`SELECT medicamento, COUNT(*) n FROM busquedas WHERE creado > UTC_TIMESTAMP() - INTERVAL 30 DAY
                 GROUP BY medicamento HAVING n >= 3 ORDER BY n DESC LIMIT 6`),
     ]);
@@ -91,7 +91,7 @@ export async function landing() {
     titulo: 'FarmaRadar · Encuentra tu medicina en farmacias de cadena y de barrio',
     descripcion: 'FarmaRadar busca tu medicina en tiempo real en las cadenas y, si está agotada, pregunta por ti a las farmacias de barrio con voz natural. Gratis y sin registro.',
     clase: 'landing',
-    scripts: ['landing.js'],
+    scripts: ['landing.js', 'asistente.js'],
     cuerpo: `${cabeceraPublica()}
 <main>
 <section class="lp-hero">
@@ -102,6 +102,7 @@ export async function landing() {
       <h1>Tu medicina, <span class="lp-resalta">encontrada</span> en minutos. No en días.</h1>
       <p class="lp-lead">FarmaRadar revisa en tiempo real las farmacias de cadena y, si está agotada, <b>les pregunta por ti, con voz,</b> a las farmacias de barrio de tu colonia. Tú solo esperas el semáforo en verde.</p>
       ${buscador('hero')}
+      ${integraciones.configurada('elevenlabs') ? `<button type="button" class="lp-voz" data-asistente>${ico.micro}<span><b>Háblale a FarmaRadar</b><small>Dile qué buscas y dónde; te contesta con voz</small></span></button>` : ''}
       <div class="lp-chips" aria-label="Búsquedas frecuentes"><span>Lo más buscado:</span>
         ${chips.map((m) => `<a class="lp-chip" href="/buscar?m=${encodeURIComponent(m)}">${esc(m)}</a>`).join('')}</div>
       <ul class="lp-confianza">

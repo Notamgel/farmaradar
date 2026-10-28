@@ -14,3 +14,9 @@ document.addEventListener('click', (e) => {
     else { campo.select(); document.execCommand('copy'); hecho(); }
   }
 });
+
+// Formularios que piden confirmación antes de enviarse.
+document.addEventListener('submit', (e) => {
+  const msg = e.target.closest('form')?.dataset.confirma;
+  if (msg && !confirm(msg)) e.preventDefault();
+});

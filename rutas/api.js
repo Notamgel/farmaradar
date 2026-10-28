@@ -10,6 +10,22 @@ import { json, cuerpo, mismoOrigen, ipDe } from '../lib/http.js';
 import { permite, iguales } from '../lib/seguridad.js';
 import { texto, coord } from '../lib/util.js';
 import * as busqueda from '../lib/busqueda.js';
+import * as integraciones from '../lib/integraciones.js';
+import { entiendeBusqueda, entiendeSiNo, FRASES, frase } from '../lib/asistente.js';
+
+/** Lee un audio del cuerpo (máx. 3 MB). → {audio, tipo} o {error, status} */
+async function leeAudio(req) {
+  const tipo = String(req.headers['content-type'] ?? '').split(';')[0].trim();
+  if (!/^audio\/(webm|mp4|ogg|mpeg|wav|x-m4a|aac)$/.test(tipo)) return { error: 'Formato de audio no válido', status: 415 };
+  const trozos = []; let n = 0;
+  for await (const t of req) { n += t.length; if (n > 3 * 1024 * 1024) return { error: 'La grabación es muy larga', status: 413 }; trozos.push(t); }
+  if (n < 1000) return { error: 'No se oyó nada; intenta de nuevo', status: 400 };
+  return { audio: Buffer.concat(trozos), tipo };
+}
+const mp3 = (res, buf) => {
+  res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': buf.length, 'Cache-Control': 'private, max-age=600', 'X-Content-Type-Options': 'nosniff' });
+  res.end(buf);
+};
 
 const ID = /^[A-Za-z0-9_-]{16}$/;
 
@@ -63,6 +79,53 @@ export default function api(r) {
     const r2 = await busqueda.fase2(params.id);
     if (r2.error) return json(res, { error: r2.error }, r2.status);
     json(res, r2);
+  });
+
+  /* ── Asistente de voz (ElevenLabs: voz a texto y texto a voz) ── */
+  r.post('/api/voz/buscar', async (req, res, { q }) => {
+    if (!mismoOrigen(req)) return json(res, { error: 'origen no permitido' }, 403);
+    if (!permite(`voz:${ipDe(req)}`, 40, 3600_000)) return json(res, { error: 'Demasiados intentos seguidos. Espera un poco.' }, 429);
+    const a = await leeAudio(req);
+    if (a.error) return json(res, { error: a.error }, a.status);
+    const t = await integraciones.transcribe(a.audio, a.tipo);
+    if (!t.ok) return json(res, { error: 'No se pudo entender el audio' }, 502);
+    const { medicamento, zona } = entiendeBusqueda(t.texto);
+    if (medicamento.length < 3) return json(res, { texto: t.texto, entendi: false });
+    if (!permite(`busca:${ipDe(req)}`, 30, 3600_000)) return json(res, { error: 'Demasiadas búsquedas seguidas. Espera un poco.' }, 429);
+    let lat = coord(q.get('lat'), 90), lng = coord(q.get('lng'), 180);
+    if (lat === null || lng === null || zona) { lat = null; lng = null; } // si dijo la zona, manda lo que dijo
+    const cp = zona.match(/\b\d{5}\b/)?.[0] ?? '';
+    const id = await busqueda.crea({ medicamento, zona, cp, lat, lng, whatsapp: '', ip: ipDe(req) });
+    json(res, { texto: t.texto, entendi: true, id, medicamento, zona });
+  });
+  r.post('/api/voz/sino', async (req, res) => {
+    if (!mismoOrigen(req)) return json(res, { error: 'origen no permitido' }, 403);
+    if (!permite(`voz:${ipDe(req)}`, 40, 3600_000)) return json(res, { error: 'Demasiados intentos seguidos. Espera un poco.' }, 429);
+    const a = await leeAudio(req);
+    if (a.error) return json(res, { error: a.error }, a.status);
+    const t = await integraciones.transcribe(a.audio, a.tipo);
+    if (!t.ok) return json(res, { error: 'No se pudo entender el audio' }, 502);
+    json(res, { texto: t.texto, si: entiendeSiNo(t.texto) });
+  });
+  r.get('/api/voz/frase/:clave', async (req, res, { params }) => {
+    const txt = FRASES[params.clave];
+    if (!txt) return json(res, { error: 'no existe' }, 404);
+    if (!permite(`voz-oye:${ipDe(req)}`, 120, 3600_000)) return json(res, { error: 'Demasiadas solicitudes' }, 429);
+    const audio = await integraciones.vozPregunta(txt);
+    if (!audio) return json(res, { error: 'La voz no está disponible ahora' }, 503);
+    res.setHeader('X-Texto', encodeURIComponent(txt));
+    mp3(res, audio);
+  });
+  r.get('/api/busquedas/:id/voz/:que', async (req, res, { params }) => {
+    if (!ID.test(params.id)) return json(res, { error: 'no existe' }, 404);
+    if (!permite(`voz-oye:${ipDe(req)}`, 120, 3600_000)) return json(res, { error: 'Demasiadas solicitudes' }, 429);
+    const v = await busqueda.vistaPublica(params.id);
+    const txt = v && frase(params.que, v);
+    if (!txt) return json(res, { error: 'no existe' }, 404);
+    const audio = await integraciones.vozPregunta(txt);
+    if (!audio) return json(res, { error: 'La voz no está disponible ahora' }, 503);
+    res.setHeader('X-Texto', encodeURIComponent(txt));
+    mp3(res, audio);
   });
 
   r.post('/api/webhooks/n8n', (req, res) => webhook(req, res, 'whatsapp'));

@@ -2,7 +2,7 @@
 
 La red inteligente contra el desabasto de medicamentos: conecta en tiempo real a pacientes con farmacias de cadena
 y boticarios de barrio mediante web scraping, agentes de voz y WhatsApp. Node 22.13 o más reciente, sin framework,
-MySQL propia (`farmaradar`). Proyecto de UVLIS (Código), carpeta `farmaradar`, publicado en https://farmaradar.lat.
+MySQL propia (`farmaradar`). En vivo en https://farmaradar.lat. Código abierto bajo licencia MIT (ver `LICENSE`).
 
 - Arrancar: `npm start` (UVLIS lo hace con «Iniciar» y le da el puerto en `PORT`).
 - Comprobar que responde: `GET /salud` → 200.
@@ -53,6 +53,15 @@ Los dos webhooks exigen la cabecera `X-FarmaRadar-Secreto` = `WEBHOOK_SECRETO`.
 `registrar_respuesta`; su id y el del número se guardan en la tabla `ajustes` (lo del `.env` manda). **Panel → Cadenas**
 muestra la última consulta de cada cadena: si su web bloquea la lectura automática o no muestra los productos, se marca
 como error y el paciente ve «No se pudo consultar» (nunca un «agotado» inventado).
+
+## Asistente de voz y farmacias de demostración
+
+- **«Háblale a FarmaRadar»** (landing, `/buscar` y cada resultado): el paciente dice qué medicina busca y dónde; ElevenLabs
+  lo transcribe (`POST /api/voz/buscar`), FarmaRadar busca y contesta con voz (`GET /api/busquedas/:id/voz/:que`), y pregunta
+  si consulta a las farmacias de barrio (`POST /api/voz/sino`).
+- **Farmacias de demostración** (`demo = 1`, etiqueta «Demo»): `node scripts/demo-farmacias.mjs` da de alta 5 por zona en
+  las ciudades principales; si alguien busca donde no hay ninguna en 10 km, se crean 5 alrededor. Contestan solas en la
+  fase 2 y no tienen teléfono. Se borran desde Panel → Farmacias.
 
 ## Código
 

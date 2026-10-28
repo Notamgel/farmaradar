@@ -66,8 +66,8 @@ function pinta(d) {
             ? (d.locales.length
               ? h('ul', { class: 'lista-estado' }, d.locales.map((l) => h('li', { class: l.estado === 'tiene' ? 'destaca' : '' },
                 sem(l.estado),
-                h('div', { class: 'le-txt' }, h('b', {}, l.nombre), h('small', {}, [l.direccion, l.colonia].filter(Boolean).join(', ')),
-                  l.nota ? h('small', { class: 'nota' }, l.nota) : null,
+                h('div', { class: 'le-txt' }, h('b', {}, l.nombre, l.demo ? h('span', { class: 'demo-tag', title: 'Farmacia de demostración' }, 'Demo') : null), h('small', {}, [l.direccion, l.colonia].filter(Boolean).join(', ')),
+                  l.nota && !l.demo ? h('small', { class: 'nota' }, l.nota) : null,
                   h('small', { class: 'canal' }, `Avisada ${CANAL[l.canal] || ''}`)),
                 l.precio ? h('span', { class: 'precio' }, pesos(l.precio)) : null)))
               : h('p', { class: 'vacio' }, 'Todavía no hay farmacias de barrio registradas en tu zona. ', h('a', { href: '/farmacias/registro' }, '¿Conoces una? Invítala.')))
@@ -121,7 +121,7 @@ function pintaGoogle(d) {
     const color = f.estado ? (COLOR[(SEM[f.estado] || ['gris'])[0]] || COLOR.gris) : '#0ea5e9';
     const m = new google.maps.Marker({ map: gmapa, position: { lat: f.lat, lng: f.lng }, icon: window.FR_MAPAS.icono(color, f.estado === 'tiene'), title: f.nombre, zIndex: f.estado === 'tiene' ? 10 : 1 });
     m.addListener('click', () => {
-      gventana.setContent(`<div class="gm-ficha"><b>${limpia(f.nombre)}</b><span>${limpia(f.direccion)}</span>${f.precio ? `<strong>${pesos(f.precio)}</strong>` : ''}
+      gventana.setContent(`<div class="gm-ficha"><b>${limpia(f.nombre)}</b>${f.demo ? '<em>Farmacia de demostración</em>' : ''}<span>${limpia(f.direccion)}</span>${f.precio ? `<strong>${pesos(f.precio)}</strong>` : ''}
         <a href="https://www.google.com/maps/dir/?api=1&destination=${f.lat},${f.lng}" target="_blank" rel="noopener">Cómo llegar</a></div>`);
       gventana.open({ map: gmapa, anchor: m });
     });

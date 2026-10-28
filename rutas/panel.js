@@ -139,12 +139,15 @@ async function farmacias(q, extra = '') {
   const filtro = texto(q.get('q'), 80);
   const filas = await db.todos(
     `SELECT f.*, (SELECT COUNT(*) FROM respuestas_locales r WHERE r.farmacia_id = f.id AND r.estado = 'tiene') AS confirmo
-     FROM farmacias f ${filtro ? 'WHERE f.nombre LIKE ? OR f.colonia LIKE ? OR f.cp LIKE ?' : ''} ORDER BY f.creado DESC LIMIT 300`,
-    filtro ? [`%${filtro}%`, `%${filtro}%`, `%${filtro}%`] : []);
+     FROM farmacias f ${filtro ? 'WHERE f.nombre LIKE ? OR f.colonia LIKE ? OR f.cp LIKE ? OR f.ciudad LIKE ?' : ''} ORDER BY f.demo, f.creado DESC LIMIT 300`,
+    filtro ? [`%${filtro}%`, `%${filtro}%`, `%${filtro}%`, `%${filtro}%`] : []);
+  const { n: demos } = await db.uno('SELECT COUNT(*) AS n FROM farmacias WHERE demo = 1');
   return `${extra}
+  ${Number(demos) ? `<div class="aviso aviso-info demo-aviso"><span>Hay <b>${Number(demos)}</b> farmacias de demostración (marcadas «Demo»): contestan solas y no tienen teléfono. Si un paciente busca donde no hay ninguna farmacia, se crean cinco alrededor.</span>
+    <form method="post" action="/panel/farmacias/demo/borrar" data-confirma="¿Borrar todas las farmacias de demostración y sus respuestas?"><button class="boton chico" type="submit">Borrar las de demostración</button></form></div>` : ''}
   <form class="filtro" method="get"><span class="campo-ico">${ico.buscar}<input name="q" value="${esc(filtro)}" placeholder="Buscar por nombre, colonia o CP"></span></form>
   ${filas.length ? `<div class="tabla-envoltura"><table class="tabla"><thead><tr><th>Farmacia</th><th>Zona</th><th>Contacto</th><th>Recibe</th><th>Confirmó</th><th></th></tr></thead><tbody>
-  ${filas.map((f) => `<tr class="${f.activa ? '' : 'apagada'}"><td><b>${esc(f.nombre)}</b><br><small>${esc(f.responsable)}</small></td>
+  ${filas.map((f) => `<tr class="${f.activa ? '' : 'apagada'}"><td><b>${esc(f.nombre)}</b>${f.demo ? ' <span class="demo-tag">Demo</span>' : ''}<br><small>${esc(f.responsable)}</small></td>
     <td>${esc(f.colonia)}<br><small>CP ${esc(f.cp)} ${f.lat ? '· en mapa' : ''}</small></td><td>${esc(f.telefono)}${f.whatsapp ? `<br><small>WA ${esc(f.whatsapp)}</small>` : ''}</td>
     <td>${f.acepta_whatsapp ? 'WhatsApp' : ''}${f.acepta_whatsapp && f.acepta_llamadas ? ' · ' : ''}${f.acepta_llamadas ? 'Llamada' : ''}</td><td>${f.confirmo}</td>
     <td class="acciones"><form method="post" action="/panel/farmacias/${f.id}/activa"><button class="boton chico" type="submit">${f.activa ? 'Pausar' : 'Activar'}</button></form>
@@ -246,6 +249,12 @@ export default function panel(r) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [datos.nombre, datos.responsable, datos.telefono, datos.whatsapp, datos.correo, datos.direccion, datos.colonia, datos.cp, datos.ciudad,
         datos.lat, datos.lng, datos.acepta_whatsapp, datos.acepta_llamadas]);
+    redirige(res, '/panel/farmacias');
+  }));
+  r.post('/panel/farmacias/demo/borrar', con(async (req, res) => {
+    await db.ejecutar('DELETE r FROM respuestas_locales r JOIN farmacias f ON f.id = r.farmacia_id WHERE f.demo = 1');
+    const { cambios } = await db.ejecutar('DELETE FROM farmacias WHERE demo = 1');
+    await db.ejecutar('INSERT INTO actividad (tipo, texto) VALUES (?, ?)', ['farmacia', `Se borraron ${cambios} farmacias de demostración`]);
     redirige(res, '/panel/farmacias');
   }));
   r.post('/panel/farmacias/:id/activa', con(async (req, res, { params }) => {
