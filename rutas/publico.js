@@ -4,13 +4,14 @@
  */
 import { db } from '../lib/db.js';
 import { html, redirige, cuerpo, mismoOrigen, ipDe, json } from '../lib/http.js';
-import { pagina, cabeceraPublica, pie, ico, logo, aviso } from '../lib/vistas.js';
+import { pagina, cabeceraPublica, pie, ico, logo, aviso, hayGoogleMaps } from '../lib/vistas.js';
 import { esc, texto, coord, pesos, fecha } from '../lib/util.js';
 import { permite, token, sha256 } from '../lib/seguridad.js';
 import * as sesion from '../lib/sesion.js';
 import * as busqueda from '../lib/busqueda.js';
 import { urlPublica } from '../lib/entorno.js';
 import { landing } from './landing.js';
+import * as integraciones from '../lib/integraciones.js';
 
 /* ── Buscador y resultado ───────────────────────────────────────────────── */
 
@@ -32,8 +33,8 @@ function buscar(q) {
       <div class="campo"><span>Tu ubicación</span>
         <button type="button" class="boton" id="ubicacion">${ico.pin} Usar mi ubicación</button>
         <small id="ubicacion-estado" class="ayuda">Opcional: para ordenar por cercanía.</small></div>
-      <label class="campo ancho-2"><span>Tu WhatsApp (opcional)</span>
-        <span class="campo-ico">${ico.whatsapp}<input name="whatsapp" inputmode="tel" placeholder="10 dígitos: te avisamos cuando alguien la tenga" maxlength="20" autocomplete="tel"></span></label>
+      ${integraciones.configurada('n8n') ? `<label class="campo ancho-2"><span>Tu WhatsApp (opcional)</span>
+        <span class="campo-ico">${ico.whatsapp}<input name="whatsapp" inputmode="tel" placeholder="10 dígitos: te avisamos cuando alguien la tenga" maxlength="20" autocomplete="tel"></span></label>` : ''}
       <input type="hidden" name="lat"><input type="hidden" name="lng">
       <div class="ancho-2"><button class="boton primario grande ancho-total" type="submit">${ico.radar} Buscar en el radar</button></div>
       <p class="error" id="error" hidden></p>
@@ -78,6 +79,10 @@ export function formFarmacia(f = {}, { accion = '/farmacias/registro', boton = '
     <button type="button" class="boton" id="ubicacion">${ico.pin} Usar mi ubicación</button>
     <small id="ubicacion-estado" class="ayuda">${f.lat ? 'Ubicación guardada.' : 'Ayuda a que te encuentren los pacientes cercanos.'}</small></div>
   <input type="hidden" name="lat" value="${v('lat')}"><input type="hidden" name="lng" value="${v('lng')}">
+  ${hayGoogleMaps() ? `<div class="campo ancho-2 elige">
+    <div class="elige-cab"><span>Marca tu farmacia en el mapa</span><button type="button" class="boton chico" id="ubica-direccion">${ico.buscar} Buscar mi dirección</button></div>
+    <div class="mapa-elige" id="mapa-elige"></div>
+    <small class="ayuda" id="elige-estado">Toca el mapa o arrastra el punto hasta tu mostrador.</small></div>` : ''}
   <fieldset class="campo ancho-2 opciones"><legend>¿Cómo quieres recibir las solicitudes?</legend>
     <label class="check"><input type="checkbox" name="acepta_whatsapp" value="1"${chk('acepta_whatsapp')}> Por WhatsApp</label>
     <label class="check"><input type="checkbox" name="acepta_llamadas" value="1"${chk('acepta_llamadas')}> Por llamada (un asistente de voz)</label>
@@ -90,7 +95,8 @@ function registro(error = '', f = {}) {
   return pagina({
     titulo: 'Registra tu farmacia · FarmaRadar',
     clase: 'app',
-    scripts: ['ubicacion.js'],
+    mapas: true,
+    scripts: ['ubicacion.js', 'elige-mapa.js'],
     cuerpo: `${cabeceraPublica('registro')}
 <main class="ancho app-main angosto">
   <section class="caja-busqueda">
@@ -137,7 +143,15 @@ function formRespuesta(r, volver = '') {
     return `<div class="respondida ${r.estado === 'tiene' ? 'verde' : 'rojo'}">${r.estado === 'tiene' ? ico.ok : ico.x}
       <b>${r.estado === 'tiene' ? `Contestaste: sí la tienes${r.precio ? ` a ${pesos(r.precio)}` : ''}` : 'Contestaste: no la tienes'}</b></div>`;
   }
-  return `<form method="post" action="/r/${esc(r.token)}" class="form-respuesta">
+  const voz = integraciones.configurada('elevenlabs') ? `<div class="voz" data-voz="/r/${esc(r.token)}">
+    <div class="voz-botones">
+      <button type="button" class="boton grande" data-escuchar>${ico.bocina} Escuchar la pregunta</button>
+      <button type="button" class="boton primario grande" data-hablar>${ico.micro} <span>Contestar hablando</span></button>
+    </div>
+    <p class="voz-estado" aria-live="polite">Toca «Contestar hablando», di si la tienes y a qué precio, y vuelve a tocar.</p>
+  </div>
+  <p class="voz-o">o contesta con los botones:</p>` : '';
+  return `${voz}<form method="post" action="/r/${esc(r.token)}" class="form-respuesta">
     ${volver ? `<input type="hidden" name="volver" value="${esc(volver)}">` : ''}
     <label class="campo"><span>Precio por caja (opcional)</span><span class="campo-ico">$<input name="precio" inputmode="decimal" placeholder="390" maxlength="10"></span></label>
     <label class="campo"><span>Nota (opcional)</span><input name="nota" maxlength="300" placeholder="Ej. Me quedan 2 cajas"></label>
@@ -152,6 +166,7 @@ function paginaRespuesta(r, hecho = false) {
   return pagina({
     titulo: 'Solicitud de un paciente · FarmaRadar',
     clase: 'app',
+    scripts: ['voz.js'],
     cuerpo: `<header class="cab"><div class="ancho cab-in"><a class="marca" href="/">${logo}</a></div></header>
 <main class="ancho app-main angosto">
   <section class="caja-busqueda">
@@ -180,7 +195,8 @@ async function panelFarmacia(fid, { nuevo = null, ok = '', error = '' } = {}) {
   return pagina({
     titulo: `${f.nombre} · FarmaRadar`,
     clase: 'app',
-    scripts: ['ubicacion.js'],
+    mapas: true,
+    scripts: ['ubicacion.js', 'voz.js', 'elige-mapa.js'],
     cuerpo: `<header class="cab"><div class="ancho cab-in"><a class="marca" href="/">${logo}</a>
   <form method="post" action="/f/salir"><button class="boton" type="submit">${ico.salir} Salir</button></form></div></header>
 <main class="ancho app-main">
@@ -278,6 +294,36 @@ export default function publico(r) {
     // Desde su panel vuelve al panel; desde el enlace, a la misma página con el gracias.
     const fid = await sesion.de(req, 'farmacia');
     redirige(res, fid === s.farmacia_id ? '/f?ok=1' : `/r/${params.token}?hecho=1`);
+  });
+
+  // ElevenLabs: la pregunta en voz (mp3) y la respuesta hablada (audio → texto → sí/no y precio).
+  r.get('/r/:token/voz.mp3', async (req, res, { params }) => {
+    if (!permite(`voz-oye:${ipDe(req)}`, 40, 3600_000)) return json(res, { error: 'Demasiadas solicitudes' }, 429);
+    const s = await solicitud(params.token);
+    if (!s) return false;
+    const mp3 = await integraciones.vozPregunta(`Hola, ${s.farmacia}. Le hablamos de FarmaRadar. Un paciente que está cerca busca ${s.medicamento}. ¿La tiene? Y si la tiene, ¿a qué precio?`);
+    if (!mp3) return json(res, { error: 'La voz no está disponible ahora' }, 503);
+    res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': mp3.length, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+    res.end(mp3);
+  });
+  r.post('/r/:token/voz', async (req, res, { params }) => {
+    if (!mismoOrigen(req)) return json(res, { error: 'no permitido' }, 403);
+    if (!permite(`voz-habla:${ipDe(req)}`, 30, 3600_000)) return json(res, { error: 'Demasiados intentos; contesta con los botones' }, 429);
+    const s = await solicitud(params.token);
+    if (!s) return json(res, { error: 'Solicitud no encontrada' }, 404);
+    if (s.estado === 'tiene' || s.estado === 'no_tiene') return json(res, { error: 'Esta solicitud ya tiene respuesta' }, 409);
+    const tipo = String(req.headers['content-type'] ?? '').split(';')[0].trim();
+    if (!/^audio\/(webm|mp4|ogg|mpeg|wav|x-m4a|aac)$/.test(tipo)) return json(res, { error: 'Formato de audio no válido' }, 415);
+    const trozos = []; let n = 0;
+    for await (const t of req) { n += t.length; if (n > 3 * 1024 * 1024) return json(res, { error: 'La grabación es muy larga' }, 413); trozos.push(t); }
+    if (n < 1000) return json(res, { error: 'No se oyó nada; intenta de nuevo' }, 400);
+    const t = await integraciones.transcribe(Buffer.concat(trozos), tipo);
+    if (!t.ok) return json(res, { error: 'No se pudo entender el audio; contesta con los botones' }, 502);
+    if (!t.texto) return json(res, { error: 'No se oyó nada; intenta de nuevo' }, 400);
+    const e = integraciones.entiendeRespuesta(t.texto);
+    if (e.tiene === null) return json(res, { texto: t.texto, listo: false });
+    await busqueda.responde(params.token, { tiene: e.tiene, precio: e.precio, transcripcion: t.texto, canal: 'llamada' });
+    json(res, { texto: t.texto, tiene: e.tiene, precio: e.precio, listo: true });
   });
 
   r.get('/f', async (req, res, { q }) => {

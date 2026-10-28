@@ -29,7 +29,7 @@ const SEM = {
   llamando: ['ambar', 'Llamando'], sin_respuesta: ['gris', 'Sin respuesta'],
 };
 const sem = (e) => { const [c, t] = SEM[e] ?? ['gris', e]; return `<span class="sem ${c}">${esc(t)}</span>`; };
-const CANAL = { panel: 'Panel', whatsapp: 'WhatsApp', llamada: 'Llamada' };
+const CANAL = { panel: 'Panel', whatsapp: 'WhatsApp', llamada: 'Voz' };
 
 function marco(activa, titulo, contenido) {
   return pagina({
@@ -165,7 +165,7 @@ async function cadenas(ok = '', error = '') {
     <label class="check"><input type="checkbox" name="activa" value="1"${c.activa === undefined || c.activa ? ' checked' : ''}> Activa</label>
     <button class="boton" type="submit">${c.id ? 'Guardar' : 'Agregar'}</button></form>`;
   return `${aviso(ok, 'ok')}${aviso(error, 'error')}
-  <p class="sub">Firecrawl entra a la página de búsqueda de cada cadena activa y lee el precio y la existencia.</p>
+  <p class="sub">Firecrawl busca la medicina en el sitio de cada cadena activa y lee su ficha: producto, precio y existencia. La página de búsqueda indica el sitio y es el enlace «Ver» cuando no hay ficha.</p>
   <section class="bloque">${filas.map(fila).join('')}</section>
   <section class="bloque"><h2>Agregar cadena</h2>${fila({})}</section>`;
 }
@@ -174,18 +174,6 @@ async function integracionesVista({ ok = '', error = '', fresca = false } = {}) 
   const lista = integraciones.estado();
   const vivo = await integraciones.revisa({ fresca });
   const base = urlPublica();
-  const extra = (a) => {
-    const v = vivo[a.id];
-    if (a.id !== 'elevenlabs' || !v) return '';
-    let h = '';
-    if (v.puedeCrearAgente && !/permiso/.test(v.texto) && /Falta/.test(v.texto)) {
-      h += `<form method="post" action="/panel/integraciones/agente"><button class="boton primario" type="submit">${ico.telefono} Crear el agente de voz</button></form>`;
-    }
-    if (v.telefonos?.length && !integraciones.configurada('elevenlabs')) {
-      h += `<form method="post" action="/panel/integraciones/telefono" class="fila-form"><label class="campo"><span>Número que llama</span><select name="id">${v.telefonos.map((t) => `<option value="${esc(t.id)}">${esc(t.numero)}${t.etiqueta ? ` · ${esc(t.etiqueta)}` : ''}</option>`).join('')}</select></label><button class="boton" type="submit">Usar este número</button></form>`;
-    }
-    return h;
-  };
   return `${aviso(ok, 'ok')}${aviso(error, 'error')}
   <p class="sub">Cada clave va en el archivo <code>.env</code> del proyecto y se enciende al reiniciar el servicio. Esta página prueba cada API en vivo (sin gastar saldo) y dice qué falta. Sin ellas FarmaRadar funciona igual: las farmacias contestan desde su panel o su enlace.</p>
   <p><a class="boton" href="/panel/integraciones?fresca=1">${ico.actividad} Volver a comprobar</a></p>
@@ -193,7 +181,6 @@ async function integracionesVista({ ok = '', error = '', fresca = false } = {}) 
     <div class="integracion-cab"><h2>${esc(a.nombre)}</h2>${vivo[a.id]?.ok ? '<span class="sem verde">Conectada</span>' : a.configurada ? '<span class="sem ambar">Revisar</span>' : '<span class="sem gris">Pendiente</span>'}</div>
     <p>${esc(a.rol)}</p>
     ${vivo[a.id] ? `<p class="estado-vivo ${vivo[a.id].ok ? 'ok' : ''}">${vivo[a.id].ok ? ico.ok : ico.reloj} ${esc(vivo[a.id].texto)}</p>` : ''}
-    ${extra(a)}
     <p class="ayuda">Variables: ${a.vars.map((v) => `<code class="${a.faltan.includes(v) ? 'falta' : ''}">${v}</code>`).join(' ')}</p>
     <p class="premio">${ico.rayo} ${esc(a.premio)}</p></article>`).join('')}</div>
   <section class="bloque"><h2>Para conectar n8n y el agente de voz</h2>
@@ -201,7 +188,7 @@ async function integracionesVista({ ok = '', error = '', fresca = false } = {}) 
     <ul class="lista-tecnica">
       <li><b>n8n recibe</b> en <code>N8N_WEBHOOK_URL</code>: <code>{evento:"alerta", medicamento, zona, farmacias:[{nombre, whatsapp, token, enlace}]}</code> y <code>{evento:"confirmado", paciente_whatsapp, farmacia, direccion, precio, enlace}</code>.</li>
       <li><b>n8n contesta</b> a <code>${esc(base)}/api/webhooks/n8n</code> con <code>{token, tiene, precio, nota}</code>.</li>
-      <li><b>El agente de ElevenLabs</b> recibe <code>{{farmacia}}</code>, <code>{{medicamento}}</code> y <code>{{token}}</code>, y con su herramienta llama a <code>${esc(base)}/api/webhooks/voz</code> con <code>{token, tiene, precio, transcripcion}</code>.</li>
+      <li><b>ElevenLabs</b>: en la página de cada solicitud la farmacia escucha la pregunta (voz de <code>ELEVENLABS_VOICE_ID</code>) y contesta hablando; su respuesta se transcribe y se entiende sola. Para llamadas por teléfono además hacen falta <code>ELEVENLABS_AGENT_ID</code> y <code>ELEVENLABS_PHONE_NUMBER_ID</code> (su herramienta contesta a <code>${esc(base)}/api/webhooks/voz</code>).</li>
       <li><b>Gemma 4</b>: cualquier API compatible con OpenAI (<code>GEMMA_URL</code> termina en <code>/v1</code>).</li>
     </ul></section>`;
 }
@@ -290,16 +277,6 @@ export default function panel(r) {
   }));
 
   r.get('/panel/integraciones', con(async (req, res, { q }) => html(res, marco('integraciones', 'Integraciones', await integracionesVista({ fresca: q.get('fresca') === '1', ok: q.get('ok') ?? '', error: q.get('error') ?? '' })))));
-  r.post('/panel/integraciones/agente', con(async (req, res) => {
-    const r2 = await integraciones.creaAgenteVoz();
-    await db.ejecutar('INSERT INTO actividad (tipo, texto) VALUES (?, ?)', [r2.ok ? 'integracion' : 'error', `ElevenLabs: ${r2.texto}`.slice(0, 500)]);
-    redirige(res, `/panel/integraciones?${r2.ok ? 'ok' : 'error'}=${encodeURIComponent(r2.texto)}`);
-  }));
-  r.post('/panel/integraciones/telefono', con(async (req, res) => {
-    const b = await cuerpo(req);
-    const r2 = await integraciones.eligeTelefono(b.id);
-    redirige(res, `/panel/integraciones?${r2.ok ? 'ok' : 'error'}=${encodeURIComponent(r2.texto)}`);
-  }));
   r.get('/panel/actividad', con(async (req, res) => html(res, marco('actividad', 'Actividad', await actividad()))));
   r.get('/panel/cuenta', con(async (req, res) => html(res, marco('cuenta', 'Mi cuenta', cuenta()))));
   r.post('/panel/cuenta', con(async (req, res, { uid }) => {

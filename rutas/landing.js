@@ -33,6 +33,26 @@ async function cifras() {
 
 const miles = (n) => n.toLocaleString('es-MX');
 
+// El radar del hero. Las posiciones (ángulo, distancia y el momento en que el barrido pasa por cada punto)
+// están en estilos.css como clases .rv-1 … .rv-8: la CSP no deja estilos en línea.
+function radar() {
+  const p = (clase, n) => `<b class="rv-punto ${clase} rv-${n}"></b>`;
+  const t = (clase, n, html) => `<div class="rv-tarjeta ${clase} rv-${n}">${html}</div>`;
+  return `<div class="rv">
+    <div class="rv-disco">
+      <i class="rv-anillo a1"></i><i class="rv-anillo a2"></i><i class="rv-anillo a3"></i><i class="rv-anillo a4"></i>
+      <i class="rv-eje h"></i><i class="rv-eje v"></i>
+      <span class="rv-barrido"></span>
+      ${p('gris', 1)}${p('gris', 2)}${p('gris', 3)}${p('gris', 4)}
+      ${p('rojo', 5)}${p('rojo', 6)}${p('ambar', 7)}${p('verde', 8)}
+      <span class="rv-yo">${ico.pin}<small>Tú</small></span>
+    </div>
+    ${t('arriba rojo', 5, `${ico.cadena}<span><b>Gran cadena</b><small>Fase 1 · web</small></span><em class="sem rojo">Agotado</em>`)}
+    ${t('arriba verde', 8, `${ico.tienda}<span><b>Farmacia Lupita</b><small><span class="lp-onda"><i></i><i></i><i></i><i></i><i></i></span>Por voz · a 350 m</small></span><em class="rv-precio">$390</em>`)}
+    <div class="rv-resultado"><span class="rv-luz"></span><span><small>Insulina glargina · Col. Roma Norte</small><b>¡La encontramos!</b></span></div>
+  </div>`;
+}
+
 export async function landing() {
   const c = await cifras();
   const apis = integraciones.estado();
@@ -69,7 +89,7 @@ export async function landing() {
 
   return pagina({
     titulo: 'FarmaRadar · Encuentra tu medicina en farmacias de cadena y de barrio',
-    descripcion: 'FarmaRadar busca tu medicina en tiempo real en las cadenas y, si está agotada, pregunta por ti a las farmacias de barrio por llamada y WhatsApp. Gratis y sin registro.',
+    descripcion: 'FarmaRadar busca tu medicina en tiempo real en las cadenas y, si está agotada, pregunta por ti a las farmacias de barrio con voz natural. Gratis y sin registro.',
     clase: 'landing',
     scripts: ['landing.js'],
     cuerpo: `${cabeceraPublica()}
@@ -80,7 +100,7 @@ export async function landing() {
     <div class="lp-hero-txt">
       <p class="lp-insignia"><span class="lp-pulso" aria-hidden="true"></span> Red en vivo contra el desabasto</p>
       <h1>Tu medicina, <span class="lp-resalta">encontrada</span> en minutos. No en días.</h1>
-      <p class="lp-lead">FarmaRadar revisa en tiempo real las farmacias de cadena y, si está agotada, <b>llama y escribe por ti</b> a las farmacias de barrio de tu colonia. Tú solo esperas el semáforo en verde.</p>
+      <p class="lp-lead">FarmaRadar revisa en tiempo real las farmacias de cadena y, si está agotada, <b>les pregunta por ti, con voz,</b> a las farmacias de barrio de tu colonia. Tú solo esperas el semáforo en verde.</p>
       ${buscador('hero')}
       <div class="lp-chips" aria-label="Búsquedas frecuentes"><span>Lo más buscado:</span>
         ${chips.map((m) => `<a class="lp-chip" href="/buscar?m=${encodeURIComponent(m)}">${esc(m)}</a>`).join('')}</div>
@@ -89,25 +109,7 @@ export async function landing() {
       </ul>
     </div>
 
-    <div class="lp-demo" aria-hidden="true">
-      <div class="lp-radar"><i></i><i></i><i></i><span class="lp-barrido"></span>
-        <b class="lp-punto r1"></b><b class="lp-punto r2"></b><b class="lp-punto v1"></b><b class="lp-punto a1"></b></div>
-      <div class="lp-ventana">
-        <div class="lp-ventana-barra"><i></i><i></i><i></i><span>farmaradar.lat/buscar</span></div>
-        <div class="lp-ventana-cuerpo">
-          <div class="lp-sem verde"><span class="lp-luz"></span><div><small>Insulina glargina · Col. Roma Norte</small><b>¡La encontramos!</b></div></div>
-          <ul class="lp-filas">
-            <li><span class="lp-fila-ico">${ico.cadena}</span><span><b>Cadena nacional A</b><small>Fase 1 · web</small></span><span class="sem rojo">Agotado</span></li>
-            <li><span class="lp-fila-ico">${ico.cadena}</span><span><b>Cadena nacional B</b><small>Fase 1 · web</small></span><span class="sem rojo">Agotado</span></li>
-            <li class="si"><span class="lp-fila-ico">${ico.tienda}</span><span><b>Farmacia Lupita</b><small>Fase 2 · llamada · a 350 m</small></span><span class="lp-precio">$390</span></li>
-            <li><span class="lp-fila-ico">${ico.whatsapp}</span><span><b>Botica San Juan</b><small>Fase 2 · WhatsApp</small></span><span class="sem ambar">Preguntando</span></li>
-          </ul>
-          <div class="lp-generico">${ico.pildora}<span><b>Genérico sugerido</b><small>Mismo principio activo: glargina</small></span></div>
-        </div>
-      </div>
-      <div class="lp-flota f1"><span class="lp-onda"><i></i><i></i><i></i><i></i><i></i></span><span><b>Llamando a la farmacia</b><small>Agente de voz</small></span></div>
-      <div class="lp-flota f2">${ico.whatsapp}<span><b>«Sí la tengo, $390»</b><small>Confirmado por WhatsApp</small></span></div>
-    </div>
+    <div class="lp-demo" aria-hidden="true">${radar()}</div>
   </div>
 
   <div class="ancho">
@@ -145,7 +147,7 @@ export async function landing() {
       <p class="sub">Empezamos por lo más rápido y, si no alcanza, salimos a preguntar a la calle por ti.</p></header>
     <ol class="lp-pasos">
       ${paso('01', ico.cadena, 'Fase 1 · segundos', 'Grandes cadenas en vivo', 'Leemos en tiempo real el precio y la existencia en las webs de las cadenas y te lo mostramos con un semáforo.')}
-      ${paso('02', ico.telefono, 'Fase 2 · voz', 'Llamamos por ti', 'Si las cadenas están agotadas, un agente de voz llama a la farmacia de barrio más cercana y le pregunta al boticario si la tiene y a qué precio.', 'destacado')}
+      ${paso('02', ico.telefono, 'Fase 2 · voz', 'Preguntamos por ti', 'Si las cadenas están agotadas, el boticario de tu colonia escucha la pregunta con voz natural y contesta hablando. Entendemos si la tiene y a qué precio.', 'destacado')}
       ${paso('03', ico.whatsapp, 'Fase 2 · WhatsApp', 'Red de la colonia', 'Al mismo tiempo, las farmacias registradas de tu zona reciben una alerta y confirman con un toque o un mensaje.')}
       ${paso('04', ico.pildora, 'Siempre', 'Genéricos más baratos', 'Identificamos el principio activo de tu medicina y te sugerimos genéricos bioequivalentes. Consulta siempre a tu médico.')}
     </ol>
@@ -153,7 +155,7 @@ export async function landing() {
       <div><span class="lp-luz-chica verde"></span><b>Verde</b> la encontramos, con farmacia y precio.</div>
       <div><span class="lp-luz-chica ambar"></span><b>Ámbar</b> seguimos buscando y preguntando.</div>
       <div><span class="lp-luz-chica rojo"></span><b>Rojo</b> agotada en todas las que respondieron.</div>
-      <p>Se actualiza solo, sin recargar la página. Si dejas tu WhatsApp, te avisamos.</p>
+      <p>Se actualiza solo, sin recargar la página.${integraciones.configurada('n8n') ? ' Si dejas tu WhatsApp, te avisamos.' : ''}</p>
     </div>
   </div>
 </section>
@@ -165,8 +167,8 @@ export async function landing() {
       <h2>Los pacientes de tu colonia ya te están buscando.</h2>
       <p class="sub">Regístrate en 10 segundos y recibe a quien busca lo que tú tienes en el mostrador. Sin página web, sin aplicaciones y sin comisiones.</p>
       <ul class="lp-lista">
-        <li><span>${ico.whatsapp}</span><div><b>Te avisamos al momento</b>Por WhatsApp o con una llamada cuando alguien busca una medicina cerca.</div></li>
-        <li><span>${ico.ok}</span><div><b>Contestas con un toque</b>«Sí la tengo» y tu precio, desde tu teléfono.</div></li>
+        <li><span>${ico.whatsapp}</span><div><b>Te avisamos al momento</b>En tu panel, con la pregunta en voz, cuando alguien busca una medicina cerca.</div></li>
+        <li><span>${ico.ok}</span><div><b>Contestas hablando o con un toque</b>Di «sí la tengo, a 390» y listo, desde tu teléfono.</div></li>
         <li><span>${ico.pin}</span><div><b>El paciente llega a tu mostrador</b>Le mostramos tu farmacia en el mapa con su ruta.</div></li>
       </ul>
       <div class="lp-botones">
@@ -188,9 +190,9 @@ export async function landing() {
 <section class="lp-seccion oscura" id="tecnologia">
   <div class="ancho">
     <header class="lp-cab revela"><p class="lp-sobre">La tecnología</p>
-      <h2>Cinco piezas conectadas en tiempo real.</h2>
-      <p class="sub">Cada una se enciende en cuanto está lista; mientras, las farmacias contestan desde su panel o su enlace y el radar sigue funcionando.</p></header>
-    <div class="lp-apis">${apis.map((a) => api(a, iconoApi[a.id] ?? ico.rayo)).join('')}</div>
+      <h2>Conectado en tiempo real.</h2>
+      <p class="sub">Leemos las tiendas en línea de las cadenas al momento y le preguntamos al boticario con voz natural.</p></header>
+    <div class="lp-apis">${apis.filter((a) => a.configurada).map((a) => api(a, iconoApi[a.id] ?? ico.rayo)).join('')}</div>
   </div>
 </section>
 
@@ -200,7 +202,7 @@ export async function landing() {
     ${pregunta('¿Cuánto cuesta?', 'Para pacientes es gratis y no necesitas registrarte. Para las farmacias de barrio también: sin comisiones por paciente.')}
     ${pregunta('¿FarmaRadar vende medicamentos?', 'No. Te decimos dónde hay y a qué precio; la compra la haces directo en la farmacia, con tu receta cuando la pida.')}
     ${pregunta('¿De dónde salen los precios?', 'De las webs de las cadenas en el momento de tu búsqueda y de lo que contesta cada boticario. Nunca inventamos un precio: si no lo sabemos, no lo mostramos.')}
-    ${pregunta('¿Qué hacen con mi WhatsApp?', 'Solo lo usamos para avisarte cuando una farmacia confirma que tiene tu medicina. Es opcional.')}
+    ${integraciones.configurada('n8n') ? pregunta('¿Qué hacen con mi WhatsApp?', 'Solo lo usamos para avisarte cuando una farmacia confirma que tiene tu medicina. Es opcional.') : ''}
     ${pregunta('¿Puedo cambiar a un genérico?', 'Te mostramos genéricos bioequivalentes con el mismo principio activo como orientación. Antes de cambiar, consulta a tu médico o farmacéutico.')}
     ${pregunta('Tengo una farmacia, ¿cómo me sumo?', 'Entra a <a href="/farmacias/registro">farmaradar.lat/farmacias/registro</a>, pon tu nombre, teléfono y dirección, y listo: recibes tu enlace privado para contestar.')}
   </div>

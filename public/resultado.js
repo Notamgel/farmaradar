@@ -8,7 +8,7 @@ const SEM = {
   tiene: ['verde', 'Sí la tiene'], no_tiene: ['rojo', 'No la tiene'], enviada: ['ambar', 'Esperando respuesta'], pendiente: ['ambar', 'Esperando respuesta'],
   llamando: ['ambar', 'Llamando…'], sin_respuesta: ['gris', 'Sin respuesta'],
 };
-const CANAL = { whatsapp: 'por WhatsApp', llamada: 'por llamada', panel: 'en su panel' };
+const CANAL = { whatsapp: 'por WhatsApp', llamada: 'por voz', panel: 'en su panel' };
 const ESPERA = new Set(['consultando', 'enviada', 'pendiente', 'llamando']);
 const COLOR = { verde: '#16a34a', rojo: '#dc2626', ambar: '#d97706', gris: '#64748b' };
 
@@ -82,22 +82,59 @@ function pinta(d) {
       h('div', { class: 'res-col' },
         h('section', { class: 'bloque mapa-bloque' }, h('h2', {}, 'Mapa'), h('div', { id: 'mapa', class: 'mapa' }),
           !d.mapa.length ? h('p', { class: 'ayuda' }, 'Las farmacias aparecen aquí cuando registran su ubicación.') : null),
-        h('section', { class: 'bloque' }, h('h2', {}, 'Genéricos y principio activo'),
+        d.genericos_estado === 'sin_configurar' ? null : h('section', { class: 'bloque' }, h('h2', {}, 'Genéricos y principio activo'),
           d.genericos_estado === 'consultando' ? h('p', { class: 'vacio' }, 'Identificando el principio activo…')
-            : d.genericos_estado === 'sin_configurar' ? h('p', { class: 'vacio' }, 'Las sugerencias de genéricos se encienden al conectar su API.')
-              : h('div', {},
+            : h('div', {},
                 d.principio_activo ? h('p', {}, 'Principio activo: ', h('b', {}, d.principio_activo)) : null,
                 d.genericos?.length ? h('ul', { class: 'genericos' }, d.genericos.map((g) => h('li', {}, h('b', {}, g.nombre), g.nota ? h('small', {}, g.nota) : null))) : h('p', { class: 'vacio' }, 'Sin sugerencias para esta medicina.'),
                 h('p', { class: 'ayuda' }, 'Consulta a tu médico o farmacéutico antes de cambiar de medicamento.'))))),
   ];
   // El mapa se conserva entre repintados: se saca y se vuelve a poner.
-  const viejo = mapa ? mapa.getContainer() : null;
+  const viejo = mapa ? mapa.getContainer() : gmapa ? gmapa.getDiv() : null;
   raiz.replaceChildren(...frag);
   if (viejo) document.getElementById('mapa').replaceWith(viejo);
   pintaMapa(d);
 }
 
+// Google Maps (si hay clave): estilo propio, marcadores del color del semáforo y «Cómo llegar».
+let gmapa = null, gmarcas = [], gventana = null, gajustado = false;
+const limpia = (t) => String(t ?? '').replace(/[<>&"]/g, '');
+function pintaGoogle(d) {
+  const el = document.getElementById('mapa');
+  if (!el || !window.FR_MAPAS?.listo) return;
+  if (!gmapa || gmapa.getDiv() !== el) {
+    gmapa = new google.maps.Map(el, {
+      center: { lat: d.lat ?? 19.4326, lng: d.lng ?? -99.1332 }, zoom: d.lat ? 14 : 12,
+      styles: window.FR_MAPAS.estilo, disableDefaultUI: true, zoomControl: true, gestureHandling: 'cooperative', clickableIcons: false,
+    });
+    gventana = new google.maps.InfoWindow();
+    gajustado = false;
+  }
+  gmarcas.forEach((m) => m.setMap(null));
+  gmarcas = [];
+  const limites = new google.maps.LatLngBounds();
+  if (d.lat && d.lng) {
+    gmarcas.push(new google.maps.Marker({ map: gmapa, position: { lat: d.lat, lng: d.lng }, icon: window.FR_MAPAS.icono('#0f766e', true), title: 'Tú', zIndex: 5 }));
+    limites.extend({ lat: d.lat, lng: d.lng });
+  }
+  for (const f of d.mapa) {
+    const color = f.estado ? (COLOR[(SEM[f.estado] || ['gris'])[0]] || COLOR.gris) : '#0ea5e9';
+    const m = new google.maps.Marker({ map: gmapa, position: { lat: f.lat, lng: f.lng }, icon: window.FR_MAPAS.icono(color, f.estado === 'tiene'), title: f.nombre, zIndex: f.estado === 'tiene' ? 10 : 1 });
+    m.addListener('click', () => {
+      gventana.setContent(`<div class="gm-ficha"><b>${limpia(f.nombre)}</b><span>${limpia(f.direccion)}</span>${f.precio ? `<strong>${pesos(f.precio)}</strong>` : ''}
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${f.lat},${f.lng}" target="_blank" rel="noopener">Cómo llegar</a></div>`);
+      gventana.open({ map: gmapa, anchor: m });
+    });
+    gmarcas.push(m);
+    limites.extend({ lat: f.lat, lng: f.lng });
+  }
+  if (gmarcas.length > 1 && !gajustado) { gmapa.fitBounds(limites, 40); gajustado = true; }
+  else if (gmarcas.length === 1 && !gajustado) { gmapa.setCenter(gmarcas[0].getPosition()); gmapa.setZoom(15); gajustado = true; }
+}
+document.addEventListener('gmaps-listo', () => datos && pintaGoogle(datos));
+
 function pintaMapa(d) {
+  if (window.FR_MAPAS) return pintaGoogle(d);
   if (!window.L) return;
   const el = document.getElementById('mapa');
   if (!mapa) {

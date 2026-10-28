@@ -38,8 +38,10 @@ sistema funciona: las farmacias contestan desde su panel o su enlace.
 
 | API | Variables | Contrato |
 |---|---|---|
-| Firecrawl | `FIRECRAWL_API_KEY` | `POST /v1/scrape` con extracción JSON (producto, precio, disponible). |
-| ElevenLabs | `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID` | Llamada saliente por Twilio con `{{farmacia}}`, `{{medicamento}}`, `{{token}}`; el agente contesta con su herramienta a `POST /api/webhooks/voz` `{token, tiene, precio, transcripcion}`. |
+| Firecrawl | `FIRECRAWL_API_KEY` | `POST /v1/search` («medicina site:dominio de la cadena») y `POST /v1/scrape` de la ficha con extracción JSON; el precio sale de `product:price:amount` de la ficha. Caché de 30 min por cadena y medicina. |
+| Google Maps | `GOOGLE_MAPS_API_KEY` | Mapa del resultado (marcadores del semáforo, «Cómo llegar») y el del registro de farmacia (tocar, arrastrar o buscar la dirección con Geocoder). Sin clave, Leaflet. |
+| ElevenLabs (voz) | `ELEVENLABS_API_KEY` (opcional `ELEVENLABS_VOICE_ID`) | En `/r/:token` y en `/f` la farmacia escucha la pregunta (`GET /r/:token/voz.mp3`, texto a voz) y contesta hablando (`POST /r/:token/voz`, voz a texto con Scribe → sí/no y precio). |
+| ElevenLabs (llamada, opcional) | además `ELEVENLABS_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID` | Llamada saliente por Twilio con `{{farmacia}}`, `{{medicamento}}`, `{{token}}`; el agente contesta con su herramienta a `POST /api/webhooks/voz` `{token, tiene, precio, transcripcion}`. |
 | n8n | `N8N_WEBHOOK_URL` | Recibe `{evento:'alerta', farmacias:[{nombre, whatsapp, token, enlace}]}` y `{evento:'confirmado', paciente_whatsapp, …}`; contesta a `POST /api/webhooks/n8n` `{token, tiene, precio, nota}`. |
 | Gemma 4 | `GEMMA_URL`, `GEMMA_MODELO`, `GEMMA_API_KEY` | Cualquier API compatible con OpenAI (`/chat/completions`). |
 | MojoAuth | `MOJOAUTH_API_KEY` | Pendiente: entrar sin contraseña. Hoy el boticario entra con su enlace privado. |

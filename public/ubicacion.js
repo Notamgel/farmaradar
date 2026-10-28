@@ -11,6 +11,7 @@ document.addEventListener('click', (e) => {
     form.querySelector('[name=lat]').value = p.coords.latitude.toFixed(6);
     form.querySelector('[name=lng]').value = p.coords.longitude.toFixed(6);
     estado.textContent = 'Ubicación lista.';
+    form.dispatchEvent(new CustomEvent('ubicacion', { detail: { lat: p.coords.latitude, lng: p.coords.longitude } }));
     b.classList.add('hecho');
     b.disabled = false;
   }, () => {
