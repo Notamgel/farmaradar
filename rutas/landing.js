@@ -35,7 +35,7 @@ const miles = (n) => n.toLocaleString('es-MX');
 
 // El radar del hero. Las posiciones (ángulo, distancia y el momento en que el barrido pasa por cada punto)
 // están en estilos.css como clases .rv-1 … .rv-8: la CSP no deja estilos en línea.
-function radar() {
+export function radar() {
   const p = (clase, n) => `<b class="rv-punto ${clase} rv-${n}"></b>`;
   const t = (clase, n, html) => `<div class="rv-tarjeta ${clase} rv-${n}">${html}</div>`;
   return `<div class="rv">

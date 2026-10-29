@@ -22,6 +22,7 @@ import * as sesion from './lib/sesion.js';
 import publico from './rutas/publico.js';
 import api from './rutas/api.js';
 import panel from './rutas/panel.js';
+import presentacion from './rutas/presentacion.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -35,6 +36,7 @@ const rutas = new Rutas();
 publico(rutas);
 api(rutas);
 panel(rutas);
+presentacion(rutas);
 
 const noExiste = (req, res) => {
   if (req.url.startsWith('/api/')) return json(res, { error: 'no existe' }, 404);

@@ -1,82 +1,76 @@
-# FarmaRadar
+# 💊 FarmaRadar
 
-La red inteligente contra el desabasto de medicamentos: conecta en tiempo real a pacientes con farmacias de cadena
-y boticarios de barrio mediante web scraping, agentes de voz y WhatsApp. Node 22.13 o más reciente, sin framework,
-MySQL propia (`farmaradar`). En vivo en https://farmaradar.lat. Código abierto bajo licencia MIT (ver `LICENSE`).
+> **La red inteligente contra el desabasto de medicamentos que conecta en tiempo real a pacientes con farmacias de cadena y boticarios de barrio mediante web scraping, voz con IA y automatización.**
 
-- Arrancar: `npm start` (UVLIS lo hace con «Iniciar» y le da el puerto en `PORT`).
-- Comprobar que responde: `GET /salud` → 200.
-- Configuración: `.env` (copia de `.env.example`; nunca va a git).
+🌐 **En vivo:** [farmaradar.lat](https://farmaradar.lat) · 🎬 **Presentación con voz:** [farmaradar.lat/presentacion](https://farmaradar.lat/presentacion) · 📄 [PDF](https://farmaradar.lat/presentacion.pdf)
 
-## Partes
+---
 
-| Ruta | Qué es |
-|---|---|
-| `/` | Landing: el problema, cómo funciona y el registro de farmacias. |
-| `/buscar` → `/b/:id` | El buscador del paciente y su resultado en vivo: semáforo, mapa, genéricos y «Buscar en farmacias locales». |
-| `/farmacias/registro` | Registro express del boticario (sin contraseña: recibe su enlace privado). |
-| `/f` | Panel de la farmacia: solicitudes de su zona y sus datos. |
-| `/r/:token` | Donde el boticario contesta «sí la tengo / no la tengo» y su precio (el enlace que va por WhatsApp). |
-| `/panel` | Panel del equipo: tablero, búsquedas, farmacias, cadenas, integraciones, actividad y cuenta. |
+## 💡 Inspiración y Problemática (El Dolor Social)
 
-**Acceso inicial al panel:** el usuario y la contraseña de `ADMIN_USUARIO` / `ADMIN_CLAVE_INICIAL` del `.env`
-(se crea solo la primera vez que arranca). Cámbiala en **Mi cuenta**.
+En México y Latinoamérica, el **desabasto de medicamentos críticos** (diabetes, hipertensión, tratamientos oncológicos y salud mental) obliga a miles de familias y cuidadores a peregrinar de sucursal en sucursal bajo el sol, perder horas vitales o pagar sobreprecios de hasta el 400%.
 
-## Cómo funciona una búsqueda
+Detectamos dos grandes fallas estructurales en el mercado actual:
+1. **Silos cerrados en grandes cadenas:** Las cadenas comerciales (San Pablo, Farmacias del Ahorro, Guadalajara) no comparten inventarios ni cuentan con APIs públicas unificadas; nunca le dirán al paciente si la farmacia de enfrente sí tiene la medicina.
+2. **Desconexión digital de las farmacias de barrio:** El **40% de las farmacias son independientes o locales**. No tienen página web ni tienda en línea, pero **muchas veces sí cuentan con existencia en mostrador** de lotes locales o equivalentes cuando las grandes cadenas ya los agotaron.
 
-1. **Fase 1**: cada cadena activa (Panel → Cadenas, con `{q}` donde va la medicina) se consulta con **Firecrawl**; a la
-   vez **Gemma 4** identifica el principio activo y sugiere genéricos.
-2. **Fase 2** (la pide el paciente): las farmacias de barrio del mismo CP, la misma colonia o a menos de 5 km reciben la
-   solicitud: por WhatsApp (**n8n**), la más cercana además por llamada (**ElevenLabs**, con tope diario
-   `LLAMADAS_POR_DIA`) y todas en su panel. Cada respuesta aparece en la pantalla del paciente; si dejó su WhatsApp,
-   n8n le avisa.
+---
 
-## Las APIs (huecos listos)
+## 🚀 ¿Qué hace FarmaRadar?
 
-Todas viven en `lib/integraciones.js` y se encienden solas al poner su clave en el `.env` y reiniciar. Sin ellas el
-sistema funciona: las farmacias contestan desde su panel o su enlace.
+**FarmaRadar** es un buscador unificado y asistente de voz del lado del paciente que opera en **dos fases de rescate**:
 
-| API | Variables | Contrato |
-|---|---|---|
-| Firecrawl | `FIRECRAWL_API_KEY` | `POST /v1/search` («medicina site:dominio de la cadena») y `POST /v1/scrape` de la ficha con extracción JSON; el precio sale de `product:price:amount` de la ficha. Caché de 30 min por cadena y medicina. |
-| Google Maps | `GOOGLE_MAPS_API_KEY` | Mapa del resultado (marcadores del semáforo, «Cómo llegar») y el del registro de farmacia (tocar, arrastrar o buscar la dirección con Geocoder). Sin clave, Leaflet. |
-| ElevenLabs (voz) | `ELEVENLABS_API_KEY` (opcional `ELEVENLABS_VOICE_ID`) | En `/r/:token` y en `/f` la farmacia escucha la pregunta (`GET /r/:token/voz.mp3`, texto a voz) y contesta hablando (`POST /r/:token/voz`, voz a texto con Scribe → sí/no y precio). |
-| ElevenLabs (llamada, opcional) | además `ELEVENLABS_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID` | Llamada saliente por Twilio con `{{farmacia}}`, `{{medicamento}}`, `{{token}}`; el agente contesta con su herramienta a `POST /api/webhooks/voz` `{token, tiene, precio, transcripcion}`. |
-| n8n | `N8N_WEBHOOK_URL` | Recibe `{evento:'alerta', farmacias:[{nombre, whatsapp, token, enlace}]}` y `{evento:'confirmado', paciente_whatsapp, …}`; contesta a `POST /api/webhooks/n8n` `{token, tiene, precio, nota}`. |
-| Gemma 4 | `GEMMA_URL`, `GEMMA_MODELO`, `GEMMA_API_KEY` | Cualquier API compatible con OpenAI (`/chat/completions`). |
-| MojoAuth | `MOJOAUTH_API_KEY` | Pendiente: entrar sin contraseña. Hoy el boticario entra con su enlace privado. |
+1. **Fase 1 — Rastreo Multi-Cadena en Tiempo Real (`Firecrawl`):** Busca la medicina en el sitio de cada cadena (Farmacias del Ahorro, Farmacias Guadalajara y Farmacias Benavides) y lee la ficha del producto: nombre exacto, precio y existencia. El precio sale de los datos de la propia ficha; nunca se inventa.
+2. **Fase 2 — Rescate de Farmacias de Barrio sin Internet (`ElevenLabs`):** Cuando el medicamento está agotado en las cadenas, FarmaRadar le pregunta por el paciente a las farmacias independientes cercanas:
+   - **🎙️ Pregunta con voz natural (`ElevenLabs`):** El boticario escucha la pregunta («Un paciente cerca busca insulina glargina, ¿la tiene? ¿a qué precio?») y **contesta hablando**; FarmaRadar transcribe su respuesta, entiende si la tiene y el precio, y la pantalla del paciente se pone en verde.
+   - **🗣️ «Háblale a FarmaRadar»:** El paciente también puede buscar sin escribir: dice qué medicina busca y dónde, y FarmaRadar le contesta con voz qué encontró, a qué precio y quién la tiene cerca.
+   - **🗺️ Mapa (`Google Maps`):** Cada farmacia aparece con el color del semáforo, su precio y el botón «Cómo llegar».
 
-Los dos webhooks exigen la cabecera `X-FarmaRadar-Secreto` = `WEBHOOK_SECRETO`.
+---
 
-**Panel → Integraciones** prueba cada API en vivo (consultas gratuitas) y dice qué falta. Con la clave de ElevenLabs
-(con permiso de «ElevenLabs Agents») el botón «Crear el agente de voz» crea el agente con su guion y la herramienta
-`registrar_respuesta`; su id y el del número se guardan en la tabla `ajustes` (lo del `.env` manda). **Panel → Cadenas**
-muestra la última consulta de cada cadena: si su web bloquea la lectura automática o no muestra los productos, se marca
-como error y el paciente ve «No se pudo consultar» (nunca un «agotado» inventado).
+## 🛠️ Cómo lo construimos y Tecnologías Integradas
 
-## Asistente de voz y farmacias de demostración
+* **🔥 Firecrawl (API REST `/v1/search` + `/v1/scrape`):** Búsqueda web limitada al dominio de cada cadena y extracción JSON de la ficha del producto (producto, precio, existencia), con caché de 30 minutos.
+* **🎙️ ElevenLabs (Text-to-Speech + Speech-to-Text):** Voz multilingüe (`eleven_multilingual_v2`) para preguntar al boticario y para el asistente del paciente, y transcripción con **Scribe** para entender lo que contestan. El código también soporta llamadas telefónicas salientes con un agente conversacional de ElevenLabs (se activan al configurar el agente y un número).
+* **🗺️ Google Maps (Maps JavaScript + Geocoding):** Mapa del resultado, ubicación de la colonia o código postal del paciente y registro de farmacias en el mapa.
+* **⚡ n8n (listo para conectar):** FarmaRadar envía los eventos `alerta` y `confirmado` al webhook de n8n configurado y recibe las confirmaciones de WhatsApp en `POST /api/webhooks/n8n`.
+* **💜 Lovable:** Algunos detalles de diseño de la interfaz se prototiparon con Lovable.
+* **Node.js + MySQL**, sin framework; panel del equipo, panel del boticario y registro express de farmacias.
 
-- **«Háblale a FarmaRadar»** (landing, `/buscar` y cada resultado): el paciente dice qué medicina busca y dónde; ElevenLabs
-  lo transcribe (`POST /api/voz/buscar`), FarmaRadar busca y contesta con voz (`GET /api/busquedas/:id/voz/:que`), y pregunta
-  si consulta a las farmacias de barrio (`POST /api/voz/sino`).
-- **Farmacias de demostración** (`demo = 1`, etiqueta «Demo»): `node scripts/demo-farmacias.mjs` da de alta 5 por zona en
-  las ciudades principales; si alguien busca donde no hay ninguna en 10 km, se crean 5 alrededor. Contestan solas en la
-  fase 2 y no tienen teléfono. Se borran desde Panel → Farmacias.
+> Para la demo hay **farmacias de barrio de demostración** (marcadas «Demo») en 35 ciudades: contestan solas y no tienen teléfono. Se borran desde el panel.
 
-## Herramientas
+---
 
-Firecrawl (cadenas), ElevenLabs (voz: texto a voz y voz a texto), Google Maps (mapas y ubicación) y MySQL. Algunos
-detalles de diseño de la interfaz se prototiparon con **Lovable**; el resto del sistema está hecho a mano en Node.
+## 🏆 Retos a los que aplica (Challenges)
 
-## Código
+- **Best Use of Firecrawl**
+- **Best Use of ElevenLabs**
+- **Best n8n Integration**
+- **Best Built with Lovable**
 
-- `server.js`: arranque y enrutado. `lib/`: base (`db.js`, `esquema.js`), `busqueda.js` (las dos fases),
-  `integraciones.js` (las APIs), `seguridad.js`, `sesion.js`, `http.js`, `vistas.js`, `util.js`.
-- `rutas/`: `publico.js` (landing, buscador, farmacias), `api.js` (API y webhooks), `panel.js`.
-- `public/`: `estilos.css` (claro y oscuro), `resultado.js` (en vivo + mapa Leaflet), `buscar.js`, `ubicacion.js`, `comun.js`.
+---
 
-## Seguridad
+## ⚙️ Instalación y Ejecución Local
 
-Contraseñas con scrypt, sesiones en la base (cookie HttpOnly, SameSite), los POST del navegador deben venir de la misma
-página, frenos por IP (búsquedas, registro, entrar, respuestas), los enlaces de farmacia y de solicitud no se pueden
-adivinar y solo se guarda el sha256 del acceso. El paciente nunca ve teléfonos de las farmacias.
+```bash
+# 1. Instalar dependencias (Node 22 o más reciente y MySQL)
+npm install
+
+# 2. Configurar variables de entorno: copia .env.example a .env y llena
+DB_HOST=127.0.0.1
+DB_USER=farmaradar
+DB_PASSWORD=tu_clave
+DB_NAME=farmaradar
+FIRECRAWL_API_KEY=tu_api_key
+ELEVENLABS_API_KEY=tu_api_key
+GOOGLE_MAPS_API_KEY=tu_api_key
+N8N_WEBHOOK_URL=tu_webhook_n8n   # opcional
+
+# 3. Iniciar servidor (crea las tablas solo)
+npm start
+
+# 4. (Opcional) Farmacias de demostración en todo México
+node scripts/demo-farmacias.mjs
+```
+
+📚 Documentación técnica (rutas, APIs, seguridad): [`docs/TECNICO.md`](docs/TECNICO.md) · Licencia: [MIT](LICENSE)
