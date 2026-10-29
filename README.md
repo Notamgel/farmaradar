@@ -2,7 +2,7 @@
 
 > **La red inteligente contra el desabasto de medicamentos que conecta en tiempo real a pacientes con farmacias de cadena y boticarios de barrio mediante web scraping, voz con IA y automatización.**
 
-🌐 **En vivo:** [farmaradar.lat](https://farmaradar.lat) · 🎬 **Presentación con voz:** [farmaradar.lat/presentacion](https://farmaradar.lat/presentacion) · 📄 [PDF](https://farmaradar.lat/presentacion.pdf)
+🌐 **En vivo:** [farmaradar.lat](https://farmaradar.lat) · 🎬 **Presentación con voz:** [farmaradar.lat/presentacion](https://farmaradar.lat/presentacion) · 🎥 [Video](https://farmaradar.lat/video) · 📄 [PDF](https://farmaradar.lat/presentacion.pdf)
 
 ---
 

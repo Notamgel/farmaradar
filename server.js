@@ -23,6 +23,7 @@ import publico from './rutas/publico.js';
 import api from './rutas/api.js';
 import panel from './rutas/panel.js';
 import presentacion from './rutas/presentacion.js';
+import video from './rutas/video.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -37,6 +38,7 @@ publico(rutas);
 api(rutas);
 panel(rutas);
 presentacion(rutas);
+video(rutas);
 
 const noExiste = (req, res) => {
   if (req.url.startsWith('/api/')) return json(res, { error: 'no existe' }, 404);

@@ -6,3 +6,6 @@ data/
 uploads/
 *.log
 .DS_Store
+
+# El video pesa ~70 MB: se sirve desde el servidor, no va en git
+public/presentacion/*.mp4
